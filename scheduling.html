@@ -1,0 +1,386 @@
+<html>
+<head>
+    <title>Scheduling simulator</title>
+
+    <meta charset="UTF-8">
+
+    <meta name="author" content="Janar Juusu">
+    <meta name="keywords" content="process,scheduling">
+    <meta name="description" content="Process scheduling simulator">
+
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans|Roboto" rel="stylesheet">
+
+    <style>
+    body {
+        font-family: 'Roboto', sans-serif;
+    }
+    h2 {
+        font-family: 'Open Sans', sans-serif;
+    }
+    p {
+        line-height: 90%;
+        margin: 10px 10px 10px 10px;
+    }
+    form {
+        line-height: 125%;
+        margin-left: 7px;
+    }
+    #wait {
+        line-height: 90%;
+        margin-top: 10px;
+    }
+    #button {
+        margin-top: 10px;
+        margin-left: 7px;
+    }
+    address {
+        font-size: 12px;
+    }
+    #timeline {
+        margin-left: 10px;
+    }
+    </style>
+
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+
+    /*    All the code below is probably not the most efficient, but
+            since we are not using any large datasets, it is okay. */
+
+    var options = {
+          timeline: { groupByRowLabel: true },
+          tooltip: { trigger: 'none' }
+        };
+
+
+    google.charts.load('current', {'packages':['timeline']});
+    google.charts.setOnLoadCallback(drawGraph);
+
+    function LIFO(data) { // Based on the example algorithm given in the task
+        var output = [];
+        var counter = 1;
+        var currentTime = 0;
+        var totalWait = 0;
+
+        data.sort(function(a, b){return b[0]-a[0]}); // Sort in descending by arrival time
+
+        data.forEach(function(process) {
+            // process[0] = arrival time
+            // process[1] = burst time
+            if(counter == 1) {
+                currentTime += parseInt(process[0], 10);
+            }
+            if(process[0] < currentTime) {
+                totalWait += currentTime-parseInt(process[0], 10);
+            }
+            var start = new Date(0,0,0,0,0,currentTime,0);
+            var end = new Date(0,0,0,0,0,currentTime+parseInt(process[1], 10),0);
+            output.push(['LIFO','P'+counter,start,end]);
+            currentTime += parseInt(process[1], 10);
+            counter++;
+        });
+
+        var average_wait = (totalWait / data.length).toFixed(2);
+        document.getElementById("lifo_ooteaeg").innerHTML = "LIFO average wait time: " + average_wait;
+
+        return output;
+    }
+
+    function FCFS(data) {
+
+        var output = [];
+        var counter = 1;
+        var currentTime = 0;
+        var totalWait = 0;
+
+        data.sort(function(a, b){return a[0]-b[0]}); // Sort in ascending by arrival time
+
+        data.forEach(function(process) {
+            // process[0] = arrival time
+            // process[1] = burst time
+            if(counter == 1) {
+                currentTime = parseInt(process[0], 10);
+            }
+            else if(process[0] < currentTime) {
+                totalWait += currentTime-parseInt(process[0], 10);
+            }
+            else if(process[0] >= currentTime) {
+                currentTime = parseInt(process[0], 10);
+            }
+            var start = new Date(0,0,0,0,0,currentTime,0);
+            var end = new Date(0,0,0,0,0,currentTime+parseInt(process[1], 10),0);
+            output.push(['FCFS','P'+counter,start,end]);
+            currentTime += parseInt(process[1], 10);
+            counter++;
+        });
+
+        var average_wait = (totalWait / data.length).toFixed(2);
+        document.getElementById("fcfs_ooteaeg").innerHTML = "FCFS average wait time: " + average_wait;
+
+        return output;
+    }
+
+    function SJF(data) {
+
+        var output = [];
+        var counter = 1;
+        var done = []; // arrival, burst, end
+        var jobs = [];
+
+        data.sort(function(a, b){return a[0]-b[0]}); // Sort in ascending by arrival time
+
+        var previousTime = -1;
+        var currentTime = parseInt(data[0][0]);
+
+        while (currentTime < 50) { // We may assume all tasks can be made in 50 units.
+
+            if(data.length == 0) {
+                break;
+            }
+
+            jobs = jobs.concat(data.filter(a => previousTime < a[0] && a[0] <= currentTime));
+            previousTime = currentTime;
+            if(jobs.length > 0) {
+                jobs.sort(function(a, b){return a[1]-b[1]});
+
+                var newJob = jobs.shift();
+                var index = data.indexOf(newJob);
+
+                var start = new Date(0,0,0,0,0,currentTime,0);
+                var end = new Date(0,0,0,0,0,currentTime+parseInt(newJob[1], 10),0);
+                output.push(['SJF','P'+counter,start,end]);
+                counter++;
+
+                done.push([parseInt(newJob[0],10), parseInt(newJob[1],10), currentTime+parseInt(newJob[1], 10)]);
+                currentTime += parseInt(newJob[1], 10);
+            }
+            else {
+                currentTime += 1;
+            }
+        }
+
+        // Waiting time
+        var totalWait = 0;
+
+        done.forEach(function(process) {
+            totalWait += process[2]-process[1]-process[0];
+        });
+
+        var average_wait = (totalWait / done.length).toFixed(2);
+        document.getElementById("sjf_ooteaeg").innerHTML = "SJF average wait time: " + average_wait;
+
+        return output;
+    }
+
+    function SRTF(data) {
+
+        var output = [];
+        var counter = 1;
+        var jobs = [];  // [job_number, arrival, burst, remaining]
+        var done = []; // [job_number, arrival, burst, end]
+
+        data.sort(function(a, b){return a[0]-b[0]}); // Sort in ascending by arrival time
+
+        var previousTime = -1;
+        var currentTime = parseInt(data[0][0],10);
+
+        while (currentTime < 50) {
+            var newJobs = data.filter(a => previousTime < a[0] && a[0] <= currentTime);
+
+            if(newJobs.length > 0) { // add freshly arrived jobs to queue
+                newJobs.forEach(function(process) {
+                    jobs.push([counter, parseInt(process[0],10), parseInt(process[1],10), parseInt(process[1],10)]);
+                    counter++;
+                });
+            }
+
+            if(jobs.length >= 1) {
+
+                jobs.sort(function(a, b){return a[3]-b[3]});
+                var start = new Date(0,0,0,0,0,currentTime,0);
+                var end = new Date(0,0,0,0,0,currentTime+1,0);
+                output.push(['SRTF','P'+jobs[0][0],start,end]);
+                jobs[0][3] -= 1;
+                if(jobs[0][3] == 0) {
+                    var finishedJob = jobs.shift();
+                    done.push([finishedJob[1], finishedJob[2], currentTime+1]);
+                }
+            }
+            previousTime = currentTime;
+            currentTime += 1;
+        }
+
+        // Calculating waiting time
+        var totalWait = 0;
+
+        done.forEach(function(process) {
+            totalWait += process[2]-process[1]-process[0];
+        });
+
+        var average_wait = (totalWait / done.length).toFixed(2);
+        document.getElementById("srtf_ooteaeg").innerHTML = "SRTF average wait time: " + average_wait;
+
+        return output;
+    }
+
+    function RR2(data) {
+        var output = [];
+        var counter = 1; // number for next new job
+        var jobs = []; // [job_number, arrival, burst, remaining]
+        var done = []; // [job_number, arrival, burst, end]
+
+        var length = data.length; // for debugging purposes - make sure all jobs are done in the end: counter == length;
+
+        data.sort(function(a, b){return a[0]-b[0]}); // Sort in ascending by arrival time
+
+        for(var currentTime = parseInt(data[0][0],10);currentTime<50;currentTime+=2) {
+            if(data.length > 0 && data[0][0] <= currentTime) {
+                var newJob = data.shift();
+                var start;
+                var end;
+                if(newJob[1] > 2) {
+                    jobs.push([counter, parseInt(newJob[0]), parseInt(newJob[1]), parseInt(newJob[1])-2]);
+                    start = new Date(0,0,0,0,0,currentTime,0);
+                    end = new Date(0,0,0,0,0,currentTime+2,0);
+                }
+                else if(newJob[1] == 2) {
+                    done.push([counter, parseInt(newJob[0]), parseInt(newJob[1]), currentTime+2]);
+                    start = new Date(0,0,0,0,0,currentTime,0);
+                    end = new Date(0,0,0,0,0,currentTime+2,0);
+                }
+                else if(newJob[1] == 1) { // Can only last for 1 timeunit
+                    done.push([counter, parseInt(newJob[0]), parseInt(newJob[1]), currentTime+1]);
+                    start = new Date(0,0,0,0,0,currentTime,0);
+                    end = new Date(0,0,0,0,0,currentTime+1,0);
+                    currentTime -= 1; // Correcting time for next loop
+                }
+                else {
+                    Console.log("JOB IS UNHANDLED: " + newJob); // For debugging purposes
+                }
+                output.push(['RR','P'+counter,start,end]);
+                counter++;
+            }
+            else if(jobs.length > 0) {
+                var existingJob = jobs.shift();
+                var start;
+                var end;
+                if(existingJob[3] > 2) {
+                    jobs.push([existingJob[0], existingJob[1], existingJob[2], existingJob[3]-2]);
+                    start = new Date(0,0,0,0,0,currentTime,0);
+                    end = new Date(0,0,0,0,0,currentTime+2,0);
+                }
+                else if(existingJob[3] == 2) {
+                    done.push([existingJob[0], existingJob[1], existingJob[2], currentTime+2]);
+                    start = new Date(0,0,0,0,0,currentTime,0);
+                    end = new Date(0,0,0,0,0,currentTime+2,0);
+                }
+                else if(existingJob[3] == 1) { // Can only last for 1 timeunit
+                    done.push([existingJob[0], existingJob[1], existingJob[2], currentTime+1]);
+                    start = new Date(0,0,0,0,0,currentTime,0);
+                    end = new Date(0,0,0,0,0,currentTime+1,0);
+                    currentTime -= 1; // Correcting time for next loop
+                }
+                else {
+                    Console.log("JOB IS UNHANDLED: " + existingJob); // For debugging purposes
+                }
+                output.push(['RR','P'+existingJob[0],start,end]);
+            }
+            else {
+                currentTime -= 1; // If no job is taken, take 1 step, not 2.
+            }
+        }
+
+        // Calculating waiting time: end - arrival - burst
+        var totalWait = 0;
+
+        done.forEach(function(process) {
+            totalWait += process[3]-process[2]-process[1];
+        });
+
+        var average_wait = (totalWait / done.length).toFixed(2);
+        document.getElementById("rr_ooteaeg").innerHTML = "RR 2 average wait time: " + average_wait;
+
+        return output;
+    }
+
+    function drawGraph() {
+        // Acquiring data from the form
+        var choice = document.getElementById('form').choice.value;
+        if(choice == "default1") {
+            var data = "1,10;4,2;12,3;13,2";
+        }
+        else if(choice == "default2") {
+            var data = "1,8;3,5;4,3;10,1;19,1";
+        }
+        else if(choice == "default3") {
+            var data = "0,4;1,5;2,2;3,1;4,6;6,3";
+        }
+        else if(choice == "own") {
+            var data = form.custom.value;
+        }
+
+        var splittedData = data.split(";"); // separates processes into separate arrays
+        var finalData = []; // separates arrive time and burst time
+        splittedData.forEach(function(entry) {
+            finalData.push(entry.split(","));
+        });
+
+        // finalData = [[arrivetime, bursttime], [arrivetime, bursttime]...]
+
+        var graphData = LIFO(finalData);
+        graphData = graphData.concat(FCFS(finalData));
+        graphData = graphData.concat(SJF(finalData));
+        graphData = graphData.concat(SRTF(finalData));
+        graphData = graphData.concat(RR2(finalData));
+
+        document.getElementById('timeline').innerHTML = '';
+
+        var container = document.getElementById('timeline');
+        var chart = new google.visualization.Timeline(container);
+        var dataTable = new google.visualization.DataTable();
+
+        dataTable.addColumn({ type: 'string', id: 'Algorithm' });
+        dataTable.addColumn({ type: 'string', id: 'Name' });
+        dataTable.addColumn({ type: 'date', id: 'Start' });
+        dataTable.addColumn({ type: 'date', id: 'End' });
+        dataTable.addRows(graphData);
+
+        chart.draw(dataTable, options);
+
+    }
+    </script>
+    </head>
+
+    <body>
+
+        <div id="header"><h2>Process scheduling simulator</h2></div>
+        <div id="description"><p>This graph shows different process scheduling methods on a graph.</p>
+            <p>You may choose one of the test process lists or enter your own.</p>
+            <p>Processes are separated by a semicolon (;), arrival time and burst time are separated by a comma (,).</p>
+            <p>Information on different schedulers can be found on <a href="https://www.tutorialspoint.com/operating_system/os_process_scheduling_algorithms.htm">Tutorialspoint</a>.</p>
+        </div>
+
+        <div id="collect">
+            <form id="form">
+                <input type="radio" name="choice" value="default1" checked>1,10;4,2;12,3;13,2<br>
+                <input type="radio" name="choice" value="default2">1,8;3,5;4,3;10,1;19,1<br>
+                <input type="radio" name="choice" value="default3">0,4;1,5;2,2;3,1;4,6;6,3<br>
+                <input type="radio" name="choice" value="own"><input type="text" name="custom"><br>
+                <input type="button" id="button" value="Draw" onClick="drawGraph()">
+            </form>
+        </div>
+
+        <div id="timeline" style="height: 260px;"></div>
+
+        <div id="wait">
+            <p id="lifo_ooteaeg"></p>
+            <p id="fcfs_ooteaeg"></p>
+            <p id="sjf_ooteaeg"></p>
+            <p id="srtf_ooteaeg"></p>
+            <p id="rr_ooteaeg"></p>
+        </div>
+
+        <div id="credits"><br><address>&copy; Janar Juusu, 2016. Made with <a href="https://developers.google.com/chart/">Google Charts</a>.</address></div>
+
+    </body>
+</html>
