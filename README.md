@@ -4,6 +4,8 @@ This simulator graphically describes different process scheduling algorithms.
 Processes are separated by a semicolon (;). Each process has arrival time and burst time, separated by comma (,).
 This was created for a school project.
 
+You can see this live [here.](https://juusujanar.eu/scheduling)
+
 ## Installation
 
 1. Download the html file
