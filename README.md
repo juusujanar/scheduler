@@ -2,7 +2,7 @@
 
 This simulator graphically describes different process scheduling algorithms.
 Processes are separated by a semicolon (;). Each process has arrival time and burst time, separated by comma (,).
-This was created for a school project.
+This was created for a school project and is made using HTML, JavaScript and a little bit of CSS.
 
 You can see this live [here.](https://juusujanar.eu/scheduling)
 
@@ -26,7 +26,7 @@ You can see this live [here.](https://juusujanar.eu/scheduling)
 
 ## Credits
 
-Made by Janar Juusu. Graph is created with Google Charts.
+Made by Janar Juusu. Graph is created with [Google Charts](https://developers.google.com/chart/).
 
 ## License
 
